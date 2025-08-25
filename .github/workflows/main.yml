@@ -7,49 +7,47 @@ on:
 
 env:
   DOTNET_VERSION: "9.0.x"                 # Change if you target a different SDK
+  SOLUTION_PATH: "MareSynchronos.sln"          # ← set to your .sln
   PROJECT_PATH: "MareSynchronos/MareSynchronos.csproj"  # <- << SET THIS to your .csproj path
   CONFIGURATION: "Release"
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive           # ← important if API/shared is a submodule
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
+      # Dalamud runtime for the SDK check
       - name: Fetch Dalamud runtime for CI
         run: |
           set -e
           wget -q https://goatcorp.github.io/dalamud-distrib/latest.zip
           mkdir -p dalamud
           unzip -q latest.zip -d dalamud
-          # Dalamud.NET.Sdk looks in $DALAMUD_HOME/Hooks/dev
           echo "DALAMUD_HOME=$PWD/dalamud" >> $GITHUB_ENV
 
-      - name: Restore
-        run: dotnet restore
+      - name: Restore (solution)
+        run: dotnet restore "${{ env.SOLUTION_PATH }}"
 
-      - name: Cache NuGet
-        uses: actions/cache@v4
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.sln', 'global.json') }}
-          restore-keys: |
-            ${{ runner.os }}-nuget-
+      - name: Build (solution)
+        run: dotnet build "${{ env.SOLUTION_PATH }}" -c "${{ env.CONFIGURATION }}" --no-restore
 
-      - name: Build
-        run: dotnet publish "${{ env.PROJECT_PATH }}" -c "${{ env.CONFIGURATION }}" -o publish/
+      - name: Publish plugin
+        run: dotnet publish "${{ env.PUBLISH_PROJECT }}" -c "${{ env.CONFIGURATION }}" -o publish/ --no-build
 
       - name: Zip publish output
         run: |
           set -e
-          ARTIFACT_NAME="$(basename "$GITHUB_REPOSITORY")-${GITHUB_REF_NAME:-manual}-${GITHUB_SHA::7}.zip"
+          ARTIFACT_NAME="mare-${GITHUB_REF_NAME:-manual}-${GITHUB_SHA::7}.zip"
           cd publish
           zip -r "../$ARTIFACT_NAME" .
           echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
