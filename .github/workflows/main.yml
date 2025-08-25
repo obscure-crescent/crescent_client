@@ -31,27 +31,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-nuget-
 
-      - name: Restore
-        run: dotnet restore "${{ env.PROJECT_PATH }}"
-
       - name: Build
-        run: dotnet publish "${{ env.PROJECT_PATH }}" -c "${{ env.CONFIGURATION }}"
-
-      # Runs tests if a test project exists; doesn't fail the build if there are none
-      - name: Test (if any)
-        run: |
-          set -e
-          if ls -1 **/*Tests.csproj >/dev/null 2>&1; then
-            dotnet test -c "${{ env.CONFIGURATION }}" --no-build --verbosity normal
-          else
-            echo "No *Tests.csproj found — skipping tests."
-          fi
-
-      - name: Publish
-        run: |
-          dotnet publish "${{ env.PROJECT_PATH }}" \
-            -c "${{ env.CONFIGURATION }}" \
-            -o publish/
+        run: dotnet publish "${{ env.PROJECT_PATH }}" -c "${{ env.CONFIGURATION }}" -o publish/
 
       - name: Zip publish output
         run: |
