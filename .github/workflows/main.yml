@@ -35,7 +35,7 @@ jobs:
         run: dotnet restore "${{ env.PROJECT_PATH }}"
 
       - name: Build
-        run: dotnet build "${{ env.PROJECT_PATH }}" -c "${{ env.CONFIGURATION }}" --no-restore
+        run: dotnet publish "${{ env.PROJECT_PATH }}" -c "${{ env.CONFIGURATION }}"
 
       # Runs tests if a test project exists; doesn't fail the build if there are none
       - name: Test (if any)
