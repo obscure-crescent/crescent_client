@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
+
 env:
   DOTNET_VERSION: "9.0.x"                 # Change if you target a different SDK
   SOLUTION_PATH: "MareSynchronos.sln"          # ← set to your .sln
@@ -38,9 +42,6 @@ jobs:
       - name: Restore (solution)
         run: dotnet restore "${{ env.SOLUTION_PATH }}"
 
-      - name: Build (solution)
-        run: dotnet build "${{ env.SOLUTION_PATH }}" -c "${{ env.CONFIGURATION }}" --no-restore
-
       - name: Pack plugin
         run: dotnet build "${{ env.SOLUTION_PATH }}" -c "${{ env.CONFIGURATION }}" -p:GenerateDalamudZip=true
 
@@ -48,6 +49,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            **/bin/Release/*.zip
+            **/bin/x64/Release/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
