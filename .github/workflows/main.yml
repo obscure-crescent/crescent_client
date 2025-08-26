@@ -11,8 +11,8 @@ permissions:
 
 env:
   DOTNET_VERSION: "9.0.x"                 # Change if you target a different SDK
-  SOLUTION_PATH: "MareSynchronos.sln"          # ← set to your .sln
-  PROJECT_PATH: "MareSynchronos/MareSynchronos.csproj"  # <- << SET THIS to your .csproj path
+  SOLUTION_PATH: "CrescentSynchronos.sln"          # ← set to your .sln
+  PROJECT_PATH: "MareSynchronos/CrescentSynchronos.csproj"  # <- << SET THIS to your .csproj path
   CONFIGURATION: "Release"
 
 jobs:
