@@ -49,6 +49,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            /home/runner/work/crescent_client/crescent_client/MareSynchronos/bin/x64/Release/MareSynchronos/
+            **/bin/x64/Release/MareSynchronos/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
