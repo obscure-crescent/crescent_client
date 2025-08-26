@@ -45,16 +45,10 @@ jobs:
       - name: Pack plugin
         run: dotnet build "${{ env.SOLUTION_PATH }}" -c "${{ env.CONFIGURATION }}" -p:GenerateDalamudZip=true
 
-      - name: Upload release output
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-output
-          path: /home/runner/work/crescent_client/crescent_client/MareSynchronos/bin/**
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            **/bin/Release/*/*.zip
+            /home/runner/work/crescent_client/crescent_client/MareSynchronos/bin/x64/Release/MareSynchronos/
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
