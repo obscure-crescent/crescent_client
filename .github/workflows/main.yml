@@ -41,20 +41,13 @@ jobs:
       - name: Build (solution)
         run: dotnet build "${{ env.SOLUTION_PATH }}" -c "${{ env.CONFIGURATION }}" --no-restore
 
-      - name: Publish plugin
-        run: dotnet publish "${{ env.PUBLISH_PROJECT }}" -c "${{ env.CONFIGURATION }}" -o publish/ --no-build
-
-      - name: Zip publish output
-        run: |
-          set -e
-          ARTIFACT_NAME="mare-${GITHUB_REF_NAME:-manual}-${GITHUB_SHA::7}.zip"
-          cd publish
-          zip -r "../$ARTIFACT_NAME" .
-          echo "ARTIFACT_NAME=$ARTIFACT_NAME" >> $GITHUB_ENV
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Pack plugin
+        run: dotnet build "${{ env.SOLUTION_PATH }}" -c "${{ env.CONFIGURATION }}" -p:GenerateDalamudZip=true
+        
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: ${{ env.ARTIFACT_NAME }}
-          path: ${{ env.ARTIFACT_NAME }}
-          if-no-files-found: error
+          files: |
+            **/bin/Release/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
