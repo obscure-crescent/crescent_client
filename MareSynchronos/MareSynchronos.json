@@ -1,9 +1,9 @@
 {
   "Author": "Obscure Crescent",
-  "Name": "Mare Synchronos",
+  "Name": "Crescent Synchronos",
   "Punchline": "Let others see you as you see yourself.",
   "Description": "This plugin will synchronize your Penumbra mods and current Glamourer state with other paired clients automatically.",
-  "InternalName": "mareSynchronos",
+  "InternalName": "crescentSynchronos",
   "ApplicableVersion": "any",
   "Tags": [
     "customization"
