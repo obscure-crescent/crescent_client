@@ -2,8 +2,8 @@ name: Build & Zip (.NET)
 
 on:
   push:
-  pull_request:
-  workflow_dispatch:
+    tags:
+      - 'v*'
 
 env:
   DOTNET_VERSION: "9.0.x"                 # Change if you target a different SDK
@@ -43,7 +43,7 @@ jobs:
 
       - name: Pack plugin
         run: dotnet build "${{ env.SOLUTION_PATH }}" -c "${{ env.CONFIGURATION }}" -p:GenerateDalamudZip=true
-        
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
