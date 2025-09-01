@@ -1,7 +1,6 @@
 # Mare Synchronos Dalamud Plugin
 
-Available at [This dalamud Repo](https://raw.githubusercontent.com/MareSynchronos/repo/main/plogonmaster.json)
+Available at [This dalamud Repo]([https://raw.githubusercontent.com/MareSynchronos/repo/main/plogonmaster.json](https://github.com/obscure-crescent/repo/plogons.json))
 
-# [Mare Synchronos Discord](https://discord.gg/5HVveFefcB)
+Please find a private server or host one yourself with the code here :)
 
-Readme TBD
