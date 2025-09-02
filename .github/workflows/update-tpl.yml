@@ -1,0 +1,165 @@
+name: Update tpl.json from generated plugin json
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      manual_tag:
+        description: "Tag to use (e.g. v1.11.2). Overrides release tag if provided."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  update-tpl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine tag and version
+        id: vars
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.manual_tag || github.event.release.tag_name || github.ref_name }}"
+          echo "raw tag: $TAG"
+          CLEAN="${TAG#v}"
+          VERSION="${CLEAN}.0"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "clean=$CLEAN" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure unzip
+        run: sudo apt-get update && sudo apt-get install -y unzip
+
+      - name: Locate or download CrescentSynchronos.json
+        id: fetch_json
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          found=""
+          # 1) Try local common build outputs
+          for p in             "CrescentSynchronos.json"             "dist/CrescentSynchronos.json"             "bin/Release/CrescentSynchronos.json"             "bin/Debug/CrescentSynchronos.json"             "output/CrescentSynchronos.json"
+          do
+            if [ -f "$p" ]; then
+              echo "Found local: $p"
+              cp -f "$p" CrescentSynchronos.json
+              found="yes"
+              break
+            fi
+          done
+          # 2) Fallback: current release assets
+          if [ -z "$found" ]; then
+            echo "Trying release assets for tag ${{ steps.vars.outputs.tag }}"
+            gh release download "${{ steps.vars.outputs.tag }}" -R "$GITHUB_REPOSITORY" -p "CrescentSynchronos.json" || true
+            if [ ! -f CrescentSynchronos.json ]; then
+              echo "Direct JSON not found; trying latest.zip"
+              gh release download "${{ steps.vars.outputs.tag }}" -R "$GITHUB_REPOSITORY" -p "latest.zip" || true
+              if [ -f latest.zip ]; then
+                unzip -j -o latest.zip '*/CrescentSynchronos.json' 'CrescentSynchronos.json' || true
+              fi
+            fi
+          fi
+          if [ -f CrescentSynchronos.json ]; then
+            echo "path=CrescentSynchronos.json" >> "$GITHUB_OUTPUT"
+            echo "Acquired CrescentSynchronos.json"
+          else
+            echo "CrescentSynchronos.json not found; will only update tpl.json version & URLs."
+          fi
+
+      - name: Merge CrescentSynchronos.json into tpl.json and update URLs
+        uses: actions/github-script@v7
+        env:
+          TAG: ${{ steps.vars.outputs.tag }}
+          VERSION: ${{ steps.vars.outputs.version }}
+          JSON_PATH: ${{ steps.fetch_json.outputs.path }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            const tplPath = 'tpl.json';
+            if (!fs.existsSync(tplPath)) {
+              core.setFailed('tpl.json not found at repository root.');
+              return;
+            }
+            const tag = process.env.TAG;
+            const version = process.env.VERSION;
+            const jsonPath = process.env.JSON_PATH;
+
+            let tplText = fs.readFileSync(tplPath, 'utf8');
+            let gen = null;
+            if (jsonPath && fs.existsSync(jsonPath)) {
+              try {
+                gen = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+                core.info(`Loaded generated JSON from ${jsonPath}`);
+              } catch (e) {
+                core.warning(`Failed to parse ${jsonPath}: ${e.message}`);
+              }
+            }
+
+            const replaceStringProp = (text, key, value) => {
+              const escaped = JSON.stringify(String(value)); // includes quotes
+              const re = new RegExp(`("${key}"\\s*:\\s*)"(?:[^"\\\\]|\\\\.)*"`, 'm');
+              return re.test(text) ? text.replace(re, `$1${escaped}`) : text;
+            };
+            const replaceNumericProp = (text, key, value) => {
+              const re = new RegExp(`("${key}"\\s*:\\s*)\\d+`, 'm');
+              return re.test(text) ? text.replace(re, `$1${Number(value)}`) : text;
+            };
+
+            if (gen) {
+              const map = {
+                Author: gen.Author,
+                Name: gen.Name,
+                InternalName: gen.InternalName,
+                AssemblyVersion: gen.AssemblyVersion || version,
+                Description: gen.Description,
+                RepoUrl: gen.RepoUrl,
+                IconUrl: gen.IconUrl,
+                Punchline: gen.Punchline
+              };
+              for (const [k, v] of Object.entries(map)) {
+                if (typeof v === 'string' && v.length) {
+                  tplText = replaceStringProp(tplText, k, v);
+                }
+              }
+              if (typeof gen.DalamudApiLevel === 'number') {
+                tplText = replaceNumericProp(tplText, 'DalamudApiLevel', gen.DalamudApiLevel);
+              }
+              if (typeof gen.LoadPriority === 'number') {
+                tplText = replaceNumericProp(tplText, 'LoadPriority', gen.LoadPriority);
+              }
+            } else {
+              // At least update version from tag (strip 'v' + '.0')
+              tplText = replaceStringProp(tplText, 'AssemblyVersion', version);
+            }
+
+            // Update both URLs to the current tag
+            const dlRe = /(https:\/\/github\.com\/obscure-crescent\/crescent_client\/releases\/download\/)\S+(\/latest\.zip)/g;
+            tplText = tplText.replace(dlRe, `$1${tag}$2`);
+
+            fs.writeFileSync(tplPath, tplText, 'utf8');
+            core.info('tpl.json updated.');
+
+      - name: Commit and push changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- tpl.json; then
+            echo "No changes to tpl.json; skipping commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tpl.json
+          git commit -m "chore: update tpl.json from generated JSON and tag ${{ steps.vars.outputs.tag }}"
+          git push
