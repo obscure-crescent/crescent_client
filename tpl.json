@@ -1,0 +1,22 @@
+[
+    {
+        "Author": "Obscure Crescent",
+        "Name": "Mare Synchronos",
+        "InternalName": "CrescentSynchronos",
+        "AssemblyVersion": "1.11.1.0",
+        "Description": "Mare Synchronos client",
+        "ApplicableVersion": "any",
+        "RepoUrl": "https://github.com/obscure-crescent/crescent_client",
+        "Tags": [
+          "customization"
+        ],
+        "DalamudApiLevel": 13,
+        "LoadPriority": 0,
+        "IconUrl": "https://raw.githubusercontent.com/obscure-crescent/crescent_client/main/icon.png",
+        "Punchline": "Sync appearances with friends.",
+        "IsHide": "False",
+        "IsTestingExclusive": "False",
+        "DownloadLinkInstall": "https://github.com/obscure-crescent/crescent_client/releases/download/v1.11.1/latest.zip",
+        "DownloadLinkUpdate": "https://github.com/obscure-crescent/crescent_client/releases/download/v1.11.1/latest.zip",
+      }
+]
