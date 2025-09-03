@@ -12,25 +12,62 @@ jobs:
     permissions:
       contents: read
     steps:
-    - name: Send repository_dispatch to target repository
-      uses: actions/github-script@v7
-      with:
-        github-token: ${{ secrets.TARGET_REPO_PAT }}  # PAT with access to target repo (Contents+Actions)
-        script: |
-          const owner = 'obscure-crescent';
-          const repo  = 'repo';
+    - name: Push file to another repo
+      env:
+        TOKEN: ${{ secrets.TARGET_REPO_PAT }}   # PAT with write perms to the target repo
+        TARGET_OWNER: obscure-crescent
+        TARGET_REPO: repo
+        TARGET_BRANCH: main
+        TARGET_FILE: plogons.json               # path inside target repo
+        SOURCE_FILE: tpl.json                   # local file to push
+        COMMIT_MSG: "sync: update plogons.json from ${{ github.repository }}@${{ github.sha }}"
+        GIT_AUTHOR_NAME: github-actions[bot]
+        GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+      run: |
+        set -euo pipefail
     
-          const payload = {
-            repo: process.env.GITHUB_REPOSITORY,
-            branch: process.env.GITHUB_REF_NAME,
-            ref: process.env.GITHUB_SHA,
-          };
+        : "${TOKEN:?Missing TOKEN}"
+        : "${TARGET_OWNER:?Missing TARGET_OWNER}"
+        : "${TARGET_REPO:?Missing TARGET_REPO}"
+        : "${TARGET_BRANCH:=main}"
+        : "${TARGET_FILE:?Missing TARGET_FILE}"
+        : "${SOURCE_FILE:?Missing SOURCE_FILE}"
+        : "${COMMIT_MSG:=chore: update ${TARGET_FILE}}"
+        : "${GIT_AUTHOR_NAME:=github-actions[bot]}"
+        : "${GIT_AUTHOR_EMAIL:=41898282+github-actions[bot]@users.noreply.github.com}"
     
-          await github.rest.repos.createDispatchEvent({
-            owner,
-            repo,
-            event_type: 'sync-plogons',
-            client_payload: payload,
-          });
+        if [ ! -f "$SOURCE_FILE" ]; then
+          echo "Source file not found: $SOURCE_FILE" >&2
+          exit 1
+        fi
     
-          core.info(`Dispatched sync to ${owner}/${repo} for ${payload.repo}@${payload.ref}`);
+        REPO_AUTH="https://x-access-token:${TOKEN}@github.com/${TARGET_OWNER}/${TARGET_REPO}.git"
+        WORKDIR="$(mktemp -d)"
+        trap 'rm -rf "$WORKDIR"' EXIT
+    
+        echo "Cloning ${TARGET_OWNER}/${TARGET_REPO} (branch: ${TARGET_BRANCH})..."
+        if git clone --depth 1 --branch "${TARGET_BRANCH}" "${REPO_AUTH}" "${WORKDIR}"; then
+          echo "Checked out existing branch ${TARGET_BRANCH}"
+        else
+          echo "Branch ${TARGET_BRANCH} not found; cloning default and creating it..."
+          git clone --depth 1 "${REPO_AUTH}" "${WORKDIR}"
+          cd "${WORKDIR}"
+          git checkout -B "${TARGET_BRANCH}"
+          git push -u origin "${TARGET_BRANCH}" || true
+        fi
+    
+        cd "${WORKDIR}"
+        mkdir -p "$(dirname "${TARGET_FILE}")"
+        cp -f "${GITHUB_WORKSPACE:-$PWD}/${SOURCE_FILE}" "${TARGET_FILE}"
+    
+        if git diff --quiet -- "${TARGET_FILE}"; then
+          echo "No changes detected for ${TARGET_FILE}; skipping commit."
+          exit 0
+        fi
+    
+        git config user.name  "${GIT_AUTHOR_NAME}"
+        git config user.email "${GIT_AUTHOR_EMAIL}"
+        git add "${TARGET_FILE}"
+        git commit -m "${COMMIT_MSG}"
+        git push origin "${TARGET_BRANCH}"
+        echo "Pushed ${TARGET_FILE} to ${TARGET_OWNER}/${TARGET_REPO}@${TARGET_BRANCH}"
