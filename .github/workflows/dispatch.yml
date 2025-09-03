@@ -25,6 +25,10 @@ jobs:
         GIT_AUTHOR_NAME: github-actions[bot]
         GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
       run: |
+        echo "PWD=$(pwd)"
+        echo "Workspace=${GITHUB_WORKSPACE}"
+        echo "Top-level:"
+        ls -la
         set -euo pipefail
     
         : "${TOKEN:?Missing TOKEN}"
