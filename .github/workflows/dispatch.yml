@@ -12,91 +12,91 @@ jobs:
     permissions:
       contents: read
     steps:
-     - name: Push file to another repo
-    env:
-      TOKEN: ${{ secrets.TARGET_REPO_PAT }}        # PAT with write access to target repo
-      TARGET_OWNER: obscure-crescent
-      TARGET_REPO: repo
-      TARGET_BRANCH: main
-      TARGET_FILE: plogons.json                    # path inside target repo
-      SOURCE_FILE: tpl.json                        # relative path in THIS job's workspace
-      # SOURCE_URL: https://raw.githubusercontent.com/<owner>/<repo>/<sha>/tpl.json  # optional fallback
-      COMMIT_MSG: "sync: update plogons.json from ${{ github.repository }}@${{ github.sha }}"
-      GIT_AUTHOR_NAME: github-actions[bot]
-      GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
-    run: |
-      set -euo pipefail
-  
-      : "${TOKEN:?Missing TOKEN}"
-      : "${TARGET_OWNER:?Missing TARGET_OWNER}"
-      : "${TARGET_REPO:?Missing TARGET_REPO}"
-      : "${TARGET_BRANCH:=main}"
-      : "${TARGET_FILE:?Missing TARGET_FILE}"
-      : "${COMMIT_MSG:=chore: update ${TARGET_FILE}}"
-  
-      # --- locate source file robustly ---
-      SRC_CANDIDATES=()
-      [ -n "${SOURCE_FILE:-}" ] && SRC_CANDIDATES+=("${SOURCE_FILE}")
-      [ -n "${GITHUB_WORKSPACE:-}" ] && [ -n "${SOURCE_FILE:-}" ] && SRC_CANDIDATES+=("${GITHUB_WORKSPACE}/${SOURCE_FILE}")
-      # common build output locations (add your own as needed)
-      [ -n "${SOURCE_FILE:-}" ] && SRC_CANDIDATES+=("dist/${SOURCE_FILE}" "bin/Release/${SOURCE_FILE}" "bin/Debug/${SOURCE_FILE}" "output/${SOURCE_FILE}")
-  
-      SOURCE_ABS=""
-      for c in "${SRC_CANDIDATES[@]}"; do
-        if [ -f "$c" ]; then
-          SOURCE_ABS="$(readlink -f "$c" || realpath "$c")"
-          break
+    - name: Push file to another repo
+      env:
+        TOKEN: ${{ secrets.TARGET_REPO_PAT }}        # PAT with write access to target repo
+        TARGET_OWNER: obscure-crescent
+        TARGET_REPO: repo
+        TARGET_BRANCH: main
+        TARGET_FILE: plogons.json                    # path inside target repo
+        SOURCE_FILE: tpl.json                        # relative path in THIS job's workspace
+        # SOURCE_URL: https://raw.githubusercontent.com/<owner>/<repo>/<sha>/tpl.json  # optional fallback
+        COMMIT_MSG: "sync: update plogons.json from ${{ github.repository }}@${{ github.sha }}"
+        GIT_AUTHOR_NAME: github-actions[bot]
+        GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+      run: |
+        set -euo pipefail
+    
+        : "${TOKEN:?Missing TOKEN}"
+        : "${TARGET_OWNER:?Missing TARGET_OWNER}"
+        : "${TARGET_REPO:?Missing TARGET_REPO}"
+        : "${TARGET_BRANCH:=main}"
+        : "${TARGET_FILE:?Missing TARGET_FILE}"
+        : "${COMMIT_MSG:=chore: update ${TARGET_FILE}}"
+    
+        # --- locate source file robustly ---
+        SRC_CANDIDATES=()
+        [ -n "${SOURCE_FILE:-}" ] && SRC_CANDIDATES+=("${SOURCE_FILE}")
+        [ -n "${GITHUB_WORKSPACE:-}" ] && [ -n "${SOURCE_FILE:-}" ] && SRC_CANDIDATES+=("${GITHUB_WORKSPACE}/${SOURCE_FILE}")
+        # common build output locations (add your own as needed)
+        [ -n "${SOURCE_FILE:-}" ] && SRC_CANDIDATES+=("dist/${SOURCE_FILE}" "bin/Release/${SOURCE_FILE}" "bin/Debug/${SOURCE_FILE}" "output/${SOURCE_FILE}")
+    
+        SOURCE_ABS=""
+        for c in "${SRC_CANDIDATES[@]}"; do
+          if [ -f "$c" ]; then
+            SOURCE_ABS="$(readlink -f "$c" || realpath "$c")"
+            break
+          fi
+        done
+    
+        # Optional fallback: download from URL if provided
+        if [ -z "${SOURCE_ABS}" ] && [ -n "${SOURCE_URL:-}" ]; then
+          echo "Downloading source from SOURCE_URL=$SOURCE_URL"
+          curl -sSfL "$SOURCE_URL" -o /tmp/source_file
+          SOURCE_ABS="/tmp/source_file"
         fi
-      done
-  
-      # Optional fallback: download from URL if provided
-      if [ -z "${SOURCE_ABS}" ] && [ -n "${SOURCE_URL:-}" ]; then
-        echo "Downloading source from SOURCE_URL=$SOURCE_URL"
-        curl -sSfL "$SOURCE_URL" -o /tmp/source_file
-        SOURCE_ABS="/tmp/source_file"
-      fi
-  
-      if [ -z "${SOURCE_ABS}" ]; then
-        echo "::error::Could not find source file '${SOURCE_FILE}'."
-        echo "PWD: $(pwd)"
-        echo "Workspace: ${GITHUB_WORKSPACE:-<unset>}"
-        echo "Listing top-level files:"
-        ls -la
-        echo "Searching for likely matches (first 200):"
-        find . -maxdepth 4 -type f -name "$(basename "${SOURCE_FILE:-*}")" | head -n 200
-        exit 1
-      fi
-  
-      echo "Using source file: $SOURCE_ABS"
-  
-      # --- push to target repo ---
-      REPO_AUTH="https://x-access-token:${TOKEN}@github.com/${TARGET_OWNER}/${TARGET_REPO}.git"
-      WORKDIR="$(mktemp -d)"
-      trap 'rm -rf "$WORKDIR"' EXIT
-  
-      echo "Cloning ${TARGET_OWNER}/${TARGET_REPO} (branch: ${TARGET_BRANCH})…"
-      if git clone --depth 1 --branch "${TARGET_BRANCH}" "${REPO_AUTH}" "${WORKDIR}"; then
-        echo "Checked out existing branch ${TARGET_BRANCH}"
-      else
-        echo "Branch ${TARGET_BRANCH} not found; cloning default and creating it…"
-        git clone --depth 1 "${REPO_AUTH}" "${WORKDIR}"
+    
+        if [ -z "${SOURCE_ABS}" ]; then
+          echo "::error::Could not find source file '${SOURCE_FILE}'."
+          echo "PWD: $(pwd)"
+          echo "Workspace: ${GITHUB_WORKSPACE:-<unset>}"
+          echo "Listing top-level files:"
+          ls -la
+          echo "Searching for likely matches (first 200):"
+          find . -maxdepth 4 -type f -name "$(basename "${SOURCE_FILE:-*}")" | head -n 200
+          exit 1
+        fi
+    
+        echo "Using source file: $SOURCE_ABS"
+    
+        # --- push to target repo ---
+        REPO_AUTH="https://x-access-token:${TOKEN}@github.com/${TARGET_OWNER}/${TARGET_REPO}.git"
+        WORKDIR="$(mktemp -d)"
+        trap 'rm -rf "$WORKDIR"' EXIT
+    
+        echo "Cloning ${TARGET_OWNER}/${TARGET_REPO} (branch: ${TARGET_BRANCH})…"
+        if git clone --depth 1 --branch "${TARGET_BRANCH}" "${REPO_AUTH}" "${WORKDIR}"; then
+          echo "Checked out existing branch ${TARGET_BRANCH}"
+        else
+          echo "Branch ${TARGET_BRANCH} not found; cloning default and creating it…"
+          git clone --depth 1 "${REPO_AUTH}" "${WORKDIR}"
+          cd "${WORKDIR}"
+          git checkout -B "${TARGET_BRANCH}"
+          git push -u origin "${TARGET_BRANCH}" || true
+        fi
+    
         cd "${WORKDIR}"
-        git checkout -B "${TARGET_BRANCH}"
-        git push -u origin "${TARGET_BRANCH}" || true
-      fi
-  
-      cd "${WORKDIR}"
-      mkdir -p "$(dirname "${TARGET_FILE}")"
-      cp -f "${SOURCE_ABS}" "${TARGET_FILE}"
-  
-      if git diff --quiet -- "${TARGET_FILE}"; then
-        echo "No changes detected for ${TARGET_FILE}; skipping commit."
-        exit 0
-      fi
-  
-      git config user.name  "${GIT_AUTHOR_NAME:-github-actions[bot]}"
-      git config user.email "${GIT_AUTHOR_EMAIL:-41898282+github-actions[bot]@users.noreply.github.com}"
-      git add "${TARGET_FILE}"
-      git commit -m "${COMMIT_MSG}"
-      git push origin "${TARGET_BRANCH}"
-      echo "Pushed ${TARGET_FILE} to ${TARGET_OWNER}/${TARGET_REPO}@${TARGET_BRANCH}"
+        mkdir -p "$(dirname "${TARGET_FILE}")"
+        cp -f "${SOURCE_ABS}" "${TARGET_FILE}"
+    
+        if git diff --quiet -- "${TARGET_FILE}"; then
+          echo "No changes detected for ${TARGET_FILE}; skipping commit."
+          exit 0
+        fi
+    
+        git config user.name  "${GIT_AUTHOR_NAME:-github-actions[bot]}"
+        git config user.email "${GIT_AUTHOR_EMAIL:-41898282+github-actions[bot]@users.noreply.github.com}"
+        git add "${TARGET_FILE}"
+        git commit -m "${COMMIT_MSG}"
+        git push origin "${TARGET_BRANCH}"
+        echo "Pushed ${TARGET_FILE} to ${TARGET_OWNER}/${TARGET_REPO}@${TARGET_BRANCH}"
