@@ -12,24 +12,25 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Send repository_dispatch to target repository
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.TARGET_REPO_PAT }}
-          script: |
-            // Configure your target repo here:
-            const owner = 'obscure-crescent';
-            const repo  = 'repo';
-            // Event payload carries the source repo, branch and commit sha
-            const payload = {
-              repo: process.env.GITHUB_REPOSITORY,
-              branch: process.env.GITHUB_REF_NAME,
-              ref: process.env.GITHUB_SHA,
-            };
-            await github.repos.createDispatchEvent({
-              owner,
-              repo,
-              event_type: 'sync-plogons',
-              client_payload: payload,
-            });
-            core.info(`Dispatched sync to ${owner}/${repo} for ${payload.repo}@${payload.ref}`);
+    - name: Send repository_dispatch to target repository
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.TARGET_REPO_PAT }}  # PAT with access to target repo (Contents+Actions)
+        script: |
+          const owner = 'obscure-crescent';
+          const repo  = 'repo';
+    
+          const payload = {
+            repo: process.env.GITHUB_REPOSITORY,
+            branch: process.env.GITHUB_REF_NAME,
+            ref: process.env.GITHUB_SHA,
+          };
+    
+          await github.rest.repos.createDispatchEvent({
+            owner,
+            repo,
+            event_type: 'sync-plogons',
+            client_payload: payload,
+          });
+    
+          core.info(`Dispatched sync to ${owner}/${repo} for ${payload.repo}@${payload.ref}`);
