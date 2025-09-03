@@ -12,6 +12,12 @@ jobs:
     permissions:
       contents: read
     steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive           # ← important if API/shared is a submodule
+        fetch-depth: 0
+    
     - name: Push file to another repo
       env:
         TOKEN: ${{ secrets.TARGET_REPO_PAT }}        # PAT with write access to target repo
